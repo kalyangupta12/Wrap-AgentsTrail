@@ -52,20 +52,38 @@ function getNetworkFromRequest(req: Request): SolanaNetwork {
   return CONFIG.solana.defaultNetwork;
 }
 
+// Parse slug to extract base slug and network override
+// Supports: slug-m (mainnet), slug-d (devnet), or just slug (uses header/default)
+function parseSlugWithNetwork(slug: string): {
+  baseSlug: string;
+  networkOverride: SolanaNetwork | null;
+} {
+  if (slug.endsWith("-m")) {
+    return { baseSlug: slug.slice(0, -2), networkOverride: "mainnet-beta" };
+  }
+  if (slug.endsWith("-d")) {
+    return { baseSlug: slug.slice(0, -2), networkOverride: "devnet" };
+  }
+  return { baseSlug: slug, networkOverride: null };
+}
+
 export async function multiTenantPaymentMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const slug = req.params.slug;
+  const rawSlug = req.params.slug;
 
-  // Get product from database
-  const product = await getProductBySlug(slug);
+  // Parse slug for network suffix (-m for mainnet, -d for devnet)
+  const { baseSlug, networkOverride } = parseSlugWithNetwork(rawSlug);
+
+  // Get product from database using base slug (without network suffix)
+  const product = await getProductBySlug(baseSlug);
 
   if (!product) {
     return res.status(404).json({
       error: "API not found",
-      message: `No API found at /v1/${slug}`,
+      message: `No API found at /v1/${baseSlug}`,
     });
   }
 
@@ -87,8 +105,8 @@ export async function multiTenantPaymentMiddleware(
     });
   }
 
-  // Get network
-  const network = getNetworkFromRequest(req);
+  // Get network - use override from slug suffix (-m/-d), or header, or default
+  const network = networkOverride || getNetworkFromRequest(req);
   const networkConfig = NETWORK_CONFIG[network];
 
   // Attach product to request for later use
@@ -99,7 +117,7 @@ export async function multiTenantPaymentMiddleware(
   // Check rate limit
   const walletAddress = req.headers["x-wallet-address"] as string;
   if (walletAddress) {
-    const rateLimitKey = `${slug}:${walletAddress}`;
+    const rateLimitKey = `${baseSlug}:${walletAddress}`;
     const rateLimit = await checkRateLimit(rateLimitKey, product.rateLimit, 60);
 
     if (!rateLimit.allowed) {
@@ -126,6 +144,9 @@ export async function multiTenantPaymentMiddleware(
     // Determine if this is mainnet or devnet based on the network config
     const isMainnet = network === "mainnet-beta";
 
+    // Build endpoint variants for easy discovery
+    const baseUrl = `https://${req.get("host")}/v1`;
+
     // x402 V1 format - this is what actually works with x402 clients
     const x402Response = {
       x402Version: 1,
@@ -142,12 +163,18 @@ export async function multiTenantPaymentMiddleware(
           asset: networkConfig.usdcAddress,
           extra: {
             name: product.name,
-            slug: product.slug,
+            slug: baseSlug,
             rateLimit: product.rateLimit,
             // Network info for clients
             solanaNetwork: network, // "mainnet-beta" or "devnet"
             chainId: networkConfig.chainId,
             isMainnet,
+            // Endpoint variants for different networks
+            endpoints: {
+              mainnet: `${baseUrl}/${baseSlug}-m`,
+              devnet: `${baseUrl}/${baseSlug}-d`,
+              default: `${baseUrl}/${baseSlug}`,
+            },
             // Supported networks info
             supportedNetworks: ["mainnet-beta", "devnet"],
             networkHeader: "X-Solana-Network",

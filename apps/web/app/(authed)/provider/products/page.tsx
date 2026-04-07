@@ -20,12 +20,16 @@ import {
   ToggleRight,
   Wallet,
   Zap,
+  Copy,
+  Check,
 } from "lucide-react";
+import { useState } from "react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function ProviderProductsPage() {
   const { connected, publicKey } = useWallet();
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
   const { data, mutate } = useSWR(
     connected && publicKey
@@ -41,6 +45,13 @@ export default function ProviderProductsPage() {
       body: JSON.stringify({ isActive: !isActive }),
     });
     mutate();
+  };
+
+  const copyEndpoint = (slug: string, suffix: string) => {
+    const endpoint = `/v1/${slug}${suffix}`;
+    navigator.clipboard.writeText(endpoint);
+    setCopiedSlug(`${slug}${suffix}`);
+    setTimeout(() => setCopiedSlug(null), 2000);
   };
 
   if (!connected) {
@@ -145,9 +156,34 @@ export default function ProviderProductsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground text-xs">Endpoint</span>
-                      <p className="font-mono mt-0.5">/v1/{product.slug}</p>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground text-xs">Endpoints</span>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <button
+                          onClick={() => copyEndpoint(product.slug, "-m")}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors group"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span className="font-mono text-xs">/v1/{product.slug}-m</span>
+                          {copiedSlug === `${product.slug}-m` ? (
+                            <Check className="h-3 w-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => copyEndpoint(product.slug, "-d")}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors group"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span className="font-mono text-xs">/v1/{product.slug}-d</span>
+                          {copiedSlug === `${product.slug}-d` ? (
+                            <Check className="h-3 w-3 text-amber-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground text-xs">Price</span>
@@ -158,10 +194,6 @@ export default function ProviderProductsPage() {
                     <div>
                       <span className="text-muted-foreground text-xs">Rate Limit</span>
                       <p className="mt-0.5">{product.rateLimit} req/min</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">Total Calls</span>
-                      <p className="mt-0.5">{product._count?.calls || 0}</p>
                     </div>
                   </div>
                 </CardContent>

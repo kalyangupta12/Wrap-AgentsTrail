@@ -22,6 +22,7 @@ import {
   Wallet,
   AlertCircle,
   Key,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -30,6 +31,7 @@ import {
   type ApiTemplate,
   type ApiEndpointTemplate,
 } from "@/lib/api-templates";
+import { useNetwork } from "@/providers/NetworkProvider";
 
 type Step = "template" | "endpoint" | "configure" | "apikey";
 
@@ -43,6 +45,7 @@ interface ExistingApiKey {
 export default function NewProductPage() {
   const { connected, publicKey } = useWallet();
   const router = useRouter();
+  const { network, isMainnet, networkConfig } = useNetwork();
   const [step, setStep] = useState<Step>("template");
   const [selectedTemplate, setSelectedTemplate] = useState<ApiTemplate | null>(
     null
@@ -234,6 +237,14 @@ export default function NewProductPage() {
               <p className="text-muted-foreground">
                 Select a pre-configured template or create a custom API
               </p>
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm">
+                <Globe className="h-3.5 w-3.5" />
+                <span className={`w-2 h-2 rounded-full ${isMainnet ? "bg-emerald-500" : "bg-amber-500"}`} />
+                <span className="font-medium">{isMainnet ? "Mainnet" : "Devnet"}</span>
+                <span className="text-muted-foreground text-xs">
+                  (change in navbar)
+                </span>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -430,9 +441,16 @@ export default function NewProductPage() {
                       className={inputClass}
                       required
                     />
-                    <p className="text-xs text-muted-foreground font-mono">
-                      /v1/{form.slug || "your-slug"}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                        <span className={`w-1.5 h-1.5 rounded-full ${isMainnet ? "bg-emerald-500" : "bg-amber-500"}`} />
+                        /v1/{form.slug || "your-slug"}{isMainnet ? "-m" : "-d"}
+                        <span className="text-muted-foreground/50">({isMainnet ? "Mainnet" : "Devnet"})</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground/70">
+                        Use <code className="bg-muted px-1 rounded">-m</code> suffix for mainnet, <code className="bg-muted px-1 rounded">-d</code> for devnet
+                      </p>
+                    </div>
                   </div>
                 </div>
 
