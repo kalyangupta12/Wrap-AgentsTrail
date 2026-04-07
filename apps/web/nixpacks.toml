@@ -1,0 +1,23 @@
+# Nixpacks configuration for Web App (Next.js)
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm", "openssl"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "cd packages/db && npx prisma generate",
+  "pnpm --filter @wrap/config build",
+  "pnpm --filter @wrap/db build",
+  "pnpm --filter @wrap/web build"
+]
+
+[start]
+cmd = "node apps/web/.next/standalone/apps/web/server.js"
+
+[variables]
+NODE_ENV = "production"
+PORT = "3000"
+HOSTNAME = "0.0.0.0"

@@ -1,0 +1,22 @@
+# Nixpacks configuration for Wrap monorepo
+# This config is for the API server - web uses Next.js auto-detection
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm", "openssl"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "cd packages/db && npx prisma generate",
+  "pnpm --filter @wrap/config build",
+  "pnpm --filter @wrap/db build",
+  "pnpm --filter @wrap/api-server build"
+]
+
+[start]
+cmd = "node apps/api-server/dist/index.js"
+
+[variables]
+NODE_ENV = "production"
