@@ -28,6 +28,9 @@ WORKDIR /app/packages/db
 RUN npx prisma@5.22.0 generate
 WORKDIR /app
 
+# Build config package first
+RUN pnpm --filter @wrap/config build
+
 # Build web app
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @wrap/web build
