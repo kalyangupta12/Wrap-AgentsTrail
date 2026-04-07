@@ -27,8 +27,9 @@ WORKDIR /app/packages/db
 RUN npx prisma@5.22.0 generate
 WORKDIR /app
 
-# Build config package first
+# Build shared packages first
 RUN pnpm --filter @wrap/config build
+RUN pnpm --filter @wrap/db build
 
 # Build API server
 RUN pnpm --filter @wrap/api-server build
