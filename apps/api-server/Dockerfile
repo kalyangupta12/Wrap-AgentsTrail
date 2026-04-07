@@ -38,6 +38,9 @@ RUN pnpm --filter @wrap/api-server build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
+
 ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs
