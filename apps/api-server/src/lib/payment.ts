@@ -115,55 +115,40 @@ export async function multiTenantPaymentMiddleware(
   const paymentHeader = req.headers["x-payment"];
 
   if (!paymentHeader) {
-    // Build x402 V2-compliant payment requirements
+    // Build x402 V1-compliant payment requirements (the format that actually works)
     // Price is in dollars (e.g., "0.001"), convert to USDC smallest unit (6 decimals)
     const priceInDollars = parseFloat(product.pricePerCall);
     const priceInMicroUnits = Math.round(priceInDollars * 1_000_000).toString();
 
-    const paymentRequirements = [
-      {
-        scheme: CONFIG.x402.paymentScheme,
-        network: networkConfig.chainId,
-        amount: priceInMicroUnits, // V2 uses 'amount' not 'maxAmountRequired'
-        asset: networkConfig.usdcAddress,
-        payTo: payoutWallet,
-        maxTimeoutSeconds: 60,
-        extra: {
-          name: product.name,
-          slug: product.slug,
-          description: product.description,
-          rateLimit: product.rateLimit,
-        },
-      },
-    ];
+    // Build the resource URL
+    const resourceUrl = `https://${req.get("host")}${req.originalUrl}`;
 
-    // Encode as base64 for the PAYMENT-REQUIRED header (x402 spec)
-    const paymentRequiredHeader = Buffer.from(
-      JSON.stringify(paymentRequirements)
-    ).toString("base64");
-
-    // Return 402 with both header (for x402 clients) and body (for human readability)
-    return res
-      .status(402)
-      .header("PAYMENT-REQUIRED", paymentRequiredHeader)
-      .json({
-        error: "Payment Required",
-        accepts: [
-          {
-            scheme: CONFIG.x402.paymentScheme,
-            price: `$${product.pricePerCall}`,
-            network: networkConfig.chainId,
-            payTo: payoutWallet,
+    // x402 V1 format - this is what actually works with x402 clients
+    const x402Response = {
+      x402Version: 1,
+      accepts: [
+        {
+          scheme: CONFIG.x402.paymentScheme,
+          network: "solana", // V1 uses simple network name, not CAIP-2
+          maxAmountRequired: priceInMicroUnits,
+          resource: resourceUrl,
+          description: product.description || product.name,
+          mimeType: "application/json",
+          payTo: payoutWallet,
+          maxTimeoutSeconds: 60,
+          asset: networkConfig.usdcAddress,
+          extra: {
+            name: product.name,
+            slug: product.slug,
+            rateLimit: product.rateLimit,
+            chainId: networkConfig.chainId, // Include CAIP-2 for reference
           },
-        ],
-        product: {
-          name: product.name,
-          slug: product.slug,
-          description: product.description,
-          rateLimit: product.rateLimit,
         },
-        facilitator: CONFIG.x402.facilitatorUrl,
-      });
+      ],
+    };
+
+    // Return 402 with x402 V1 JSON body
+    return res.status(402).json(x402Response);
   }
 
   // Verify payment with facilitator
