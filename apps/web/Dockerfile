@@ -19,8 +19,10 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
-RUN pnpm --filter @wrap/db db:generate
+# Install Prisma CLI and generate client
+WORKDIR /app/packages/db
+RUN npx prisma generate
+WORKDIR /app
 
 # Build web app
 ENV NEXT_TELEMETRY_DISABLED=1
