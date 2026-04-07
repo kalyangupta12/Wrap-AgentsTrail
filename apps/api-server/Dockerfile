@@ -18,10 +18,8 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Install Prisma CLI and generate client
-WORKDIR /app/packages/db
-RUN npx prisma generate
-WORKDIR /app
+# Generate Prisma client using workspace Prisma version
+RUN pnpm --filter @wrap/db exec prisma generate
 
 # Build API server
 RUN pnpm --filter @wrap/api-server build
