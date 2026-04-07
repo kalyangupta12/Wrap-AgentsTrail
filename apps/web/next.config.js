@@ -4,13 +4,7 @@ const nextConfig = {
   transpilePackages: ["@wrap/db", "@wrap/config"],
   experimental: {
     outputFileTracingRoot: require('path').join(__dirname, '../../'),
-    serverComponentsExternalPackages: ["@prisma/client", "prisma"],
-    outputFileTracingIncludes: {
-      '/**': [
-        '../../node_modules/**/*.node',
-        '../../packages/db/node_modules/**/*.node'
-      ]
-    }
+    serverComponentsExternalPackages: ["@prisma/client", "prisma"]
   },
   webpack: (config) => {
     config.resolve.fallback = {
