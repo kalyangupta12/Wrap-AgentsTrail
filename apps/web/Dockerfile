@@ -9,18 +9,20 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/api-server/package.json ./apps/api-server/
 COPY packages/db/package.json ./packages/db/
+COPY packages/db/prisma ./packages/db/prisma
 COPY packages/config/package.json ./packages/config/
-COPY packages/db/tsconfig.json ./packages/db/
-COPY packages/config/tsconfig.json ./packages/config/
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile
 
 # Build the application
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY . .
 
-# Generate Prisma client using workspace Prisma version
-RUN pnpm --filter @wrap/db exec prisma generate
+# Generate Prisma client
+WORKDIR /app/packages/db
+RUN npx prisma@5.22.0 generate
+WORKDIR /app
 
 # Build web app
 ENV NEXT_TELEMETRY_DISABLED=1
