@@ -1,4 +1,4 @@
-# Nixpacks configuration for Web App (Next.js)
+# Nixpacks configuration for Web App
 
 [phases.setup]
 nixPkgs = ["nodejs_20", "pnpm", "openssl"]
@@ -8,14 +8,14 @@ cmds = ["pnpm install"]
 
 [phases.build]
 cmds = [
-  "cd packages/db && npx prisma generate",
+  "cd packages/db && npx prisma generate && cd ../..",
   "pnpm --filter @wrap/config build",
   "pnpm --filter @wrap/db build",
   "pnpm --filter @wrap/web build"
 ]
 
 [start]
-cmd = "node apps/web/.next/standalone/apps/web/server.js"
+cmd = "cd apps/web && node .next/standalone/apps/web/server.js"
 
 [variables]
 NODE_ENV = "production"

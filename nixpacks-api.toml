@@ -1,4 +1,4 @@
-# Nixpacks configuration for Web App (Next.js)
+# Nixpacks configuration for API Server
 
 [phases.setup]
 nixPkgs = ["nodejs_20", "pnpm", "openssl"]
@@ -8,16 +8,15 @@ cmds = ["pnpm install"]
 
 [phases.build]
 cmds = [
-  "cd packages/db && npx prisma generate",
+  "cd packages/db && npx prisma generate && cd ../..",
   "pnpm --filter @wrap/config build",
   "pnpm --filter @wrap/db build",
-  "pnpm --filter @wrap/web build"
+  "pnpm --filter @wrap/api-server build"
 ]
 
 [start]
-cmd = "node apps/web/.next/standalone/apps/web/server.js"
+cmd = "node apps/api-server/dist/index.js"
 
 [variables]
 NODE_ENV = "production"
-PORT = "3000"
-HOSTNAME = "0.0.0.0"
+PORT = "3001"
