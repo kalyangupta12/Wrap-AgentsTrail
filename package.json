@@ -13,6 +13,10 @@
     "db:studio": "pnpm --filter @wrap/db studio"
   },
   "devDependencies": {
+    "@solana/web3.js": "^1.91.0",
+    "@x402/fetch": "^2.9.0",
+    "@x402/svm": "^2.9.0",
+    "bs58": "^5.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
   },

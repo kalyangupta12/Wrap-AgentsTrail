@@ -111,29 +111,60 @@ export async function multiTenantPaymentMiddleware(
     }
   }
 
-  // Check for X-PAYMENT header
+  // Check for X-PAYMENT header (x402 uses X-PAYMENT for the payment payload)
   const paymentHeader = req.headers["x-payment"];
 
   if (!paymentHeader) {
-    // Return 402 Payment Required with challenge
-    return res.status(402).json({
-      error: "Payment Required",
-      accepts: [
-        {
-          scheme: CONFIG.x402.paymentScheme,
-          price: `$${product.pricePerCall}`,
-          network: networkConfig.chainId,
-          payTo: payoutWallet,
+    // Build x402-compliant payment requirements
+    // Price is in dollars (e.g., "0.001"), convert to USDC smallest unit (6 decimals)
+    const priceInDollars = parseFloat(product.pricePerCall);
+    const priceInMicroUnits = Math.round(priceInDollars * 1_000_000).toString();
+
+    const paymentRequirements = [
+      {
+        scheme: CONFIG.x402.paymentScheme,
+        network: networkConfig.chainId,
+        maxAmountRequired: priceInMicroUnits,
+        resource: `${req.protocol}://${req.get("host")}${req.originalUrl}`,
+        description: product.description || product.name,
+        payTo: payoutWallet,
+        maxTimeoutSeconds: 60,
+        asset: networkConfig.usdcAddress,
+        extra: {
+          name: product.name,
+          slug: product.slug,
+          rateLimit: product.rateLimit,
         },
-      ],
-      product: {
-        name: product.name,
-        slug: product.slug,
-        description: product.description,
-        rateLimit: product.rateLimit,
       },
-      facilitator: CONFIG.x402.facilitatorUrl,
-    });
+    ];
+
+    // Encode as base64 for the X-PAYMENT-REQUIRED header
+    const paymentRequiredHeader = Buffer.from(
+      JSON.stringify(paymentRequirements)
+    ).toString("base64");
+
+    // Return 402 with both header (for x402 clients) and body (for human readability)
+    return res
+      .status(402)
+      .header("X-PAYMENT-REQUIRED", paymentRequiredHeader)
+      .json({
+        error: "Payment Required",
+        accepts: [
+          {
+            scheme: CONFIG.x402.paymentScheme,
+            price: `$${product.pricePerCall}`,
+            network: networkConfig.chainId,
+            payTo: payoutWallet,
+          },
+        ],
+        product: {
+          name: product.name,
+          slug: product.slug,
+          description: product.description,
+          rateLimit: product.rateLimit,
+        },
+        facilitator: CONFIG.x402.facilitatorUrl,
+      });
   }
 
   // Verify payment with facilitator
