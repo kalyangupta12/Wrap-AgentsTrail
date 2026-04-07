@@ -9,7 +9,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api-server/package.json ./apps/api-server/
 COPY packages/db/package.json ./packages/db/
 COPY packages/config/package.json ./packages/config/
-RUN pnpm install --frozen-lockfile
+COPY packages/db/tsconfig.json ./packages/db/
+COPY packages/config/tsconfig.json ./packages/config/
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Build the application
 FROM base AS builder
