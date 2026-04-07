@@ -138,7 +138,7 @@ export async function multiTenantPaymentMiddleware(
       },
     ];
 
-    // Encode as base64 for the X-PAYMENT-REQUIRED header
+    // Encode as base64 for the PAYMENT-REQUIRED header (x402 spec)
     const paymentRequiredHeader = Buffer.from(
       JSON.stringify(paymentRequirements)
     ).toString("base64");
@@ -146,7 +146,7 @@ export async function multiTenantPaymentMiddleware(
     // Return 402 with both header (for x402 clients) and body (for human readability)
     return res
       .status(402)
-      .header("X-PAYMENT-REQUIRED", paymentRequiredHeader)
+      .header("PAYMENT-REQUIRED", paymentRequiredHeader)
       .json({
         error: "Payment Required",
         accepts: [
