@@ -5,6 +5,12 @@ const nextConfig = {
   experimental: {
     outputFileTracingRoot: require('path').join(__dirname, '../../'),
     serverComponentsExternalPackages: ["@prisma/client", "prisma"],
+    outputFileTracingIncludes: {
+      '/**': [
+        '../../node_modules/**/*.node',
+        '../../packages/db/node_modules/**/*.node'
+      ]
+    }
   },
   webpack: (config) => {
     config.resolve.fallback = {
