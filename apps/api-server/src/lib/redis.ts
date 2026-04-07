@@ -1,16 +1,20 @@
-import Redis from "ioredis";
+import IORedis from "ioredis";
+import type { Redis as RedisType } from "ioredis";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
-export const redis = new Redis(REDIS_URL, {
+// Handle ESM/CJS interop
+const RedisConstructor = (IORedis as any).default || IORedis;
+
+export const redis: RedisType = new RedisConstructor(REDIS_URL, {
   maxRetriesPerRequest: 3,
-  retryStrategy(times) {
+  retryStrategy(times: number) {
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
 });
 
-redis.on("error", (err) => {
+redis.on("error", (err: Error) => {
   console.error("Redis connection error:", err);
 });
 

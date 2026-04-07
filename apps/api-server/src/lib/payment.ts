@@ -194,7 +194,7 @@ async function verifyPayment(
       return false;
     }
 
-    const result = await response.json();
+    const result = (await response.json()) as { verified?: boolean };
     return result.verified === true;
   } catch (error) {
     console.error("Payment parsing/verification error:", error);
