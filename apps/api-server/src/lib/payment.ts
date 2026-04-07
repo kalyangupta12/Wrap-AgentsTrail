@@ -147,6 +147,9 @@ export async function multiTenantPaymentMiddleware(
     // Build endpoint variants for easy discovery
     const baseUrl = `https://${req.get("host")}/v1`;
 
+    // Fee payer from x402 facilitator (same for both networks)
+    const feePayer = "BZDTTtvHs62PbWdeVtbzhHAoAuP2eL9QCgH9TAvUdC3Q";
+
     // x402 V1 format - this is what actually works with x402 clients
     const x402Response = {
       x402Version: 1,
@@ -165,6 +168,8 @@ export async function multiTenantPaymentMiddleware(
             name: product.name,
             slug: baseSlug,
             rateLimit: product.rateLimit,
+            // Fee payer for transaction sponsorship
+            feePayer,
             // Network info for clients
             solanaNetwork: network, // "mainnet-beta" or "devnet"
             chainId: networkConfig.chainId,
