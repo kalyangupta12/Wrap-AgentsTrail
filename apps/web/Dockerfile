@@ -1,5 +1,6 @@
 # Base image for building
 FROM node:20-alpine AS base
+RUN apk add --no-cache openssl
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 
@@ -34,6 +35,7 @@ RUN pnpm --filter @wrap/db build
 
 # Build web app
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN pnpm --filter @wrap/web build
 
 # Production image
