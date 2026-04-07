@@ -7,8 +7,8 @@
  *   3. Run: npx tsx scripts/test-x402.ts
  */
 
-import { wrapFetchWithPayment } from "@x402/fetch";
-import { toClientSvmSigner, DEVNET_RPC_URL } from "@x402/svm";
+import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
+import { ExactSvmScheme, DEVNET_RPC_URL, SOLANA_DEVNET_CAIP2 } from "@x402/svm";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 
@@ -30,11 +30,17 @@ async function main() {
 
   console.log("Wallet address:", keypair.publicKey.toBase58());
 
-  // Create x402 payment signer for Solana using the new API
-  const paymentSigner = toClientSvmSigner(keypair, DEVNET_RPC_URL);
+  // Create x402 payment scheme for Solana
+  const paymentScheme = new ExactSvmScheme({
+    rpcUrl: DEVNET_RPC_URL,
+    keypair: keypair,
+  });
+
+  // Create x402 client and register the Solana devnet scheme
+  const client = new x402Client().register(SOLANA_DEVNET_CAIP2, paymentScheme);
 
   // Wrap fetch with x402 payment handling
-  const x402Fetch = wrapFetchWithPayment(fetch, paymentSigner);
+  const x402Fetch = wrapFetchWithPayment(fetch, client);
 
   // Make a paid API request
   const apiUrl = process.env.API_URL || "https://api-wrap.agentstrail.ai";

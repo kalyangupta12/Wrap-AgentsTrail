@@ -115,7 +115,7 @@ export async function multiTenantPaymentMiddleware(
   const paymentHeader = req.headers["x-payment"];
 
   if (!paymentHeader) {
-    // Build x402-compliant payment requirements
+    // Build x402 V2-compliant payment requirements
     // Price is in dollars (e.g., "0.001"), convert to USDC smallest unit (6 decimals)
     const priceInDollars = parseFloat(product.pricePerCall);
     const priceInMicroUnits = Math.round(priceInDollars * 1_000_000).toString();
@@ -124,15 +124,14 @@ export async function multiTenantPaymentMiddleware(
       {
         scheme: CONFIG.x402.paymentScheme,
         network: networkConfig.chainId,
-        maxAmountRequired: priceInMicroUnits,
-        resource: `${req.protocol}://${req.get("host")}${req.originalUrl}`,
-        description: product.description || product.name,
+        amount: priceInMicroUnits, // V2 uses 'amount' not 'maxAmountRequired'
+        asset: networkConfig.usdcAddress,
         payTo: payoutWallet,
         maxTimeoutSeconds: 60,
-        asset: networkConfig.usdcAddress,
         extra: {
           name: product.name,
           slug: product.slug,
+          description: product.description,
           rateLimit: product.rateLimit,
         },
       },
