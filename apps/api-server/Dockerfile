@@ -5,6 +5,8 @@ WORKDIR /app
 
 # Install dependencies
 FROM base AS deps
+# Add build dependencies for native modules
+RUN apk add --no-cache python3 make g++
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api-server/package.json ./apps/api-server/
 COPY packages/db/package.json ./packages/db/

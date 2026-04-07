@@ -5,6 +5,8 @@ WORKDIR /app
 
 # Install dependencies
 FROM base AS deps
+# Add build dependencies for native modules (usb for hardware wallets)
+RUN apk add --no-cache python3 make g++ linux-headers eudev-dev
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/api-server/package.json ./apps/api-server/
