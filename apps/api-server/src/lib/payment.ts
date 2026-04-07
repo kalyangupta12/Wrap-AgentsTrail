@@ -1,0 +1,211 @@
+import type { Request, Response, NextFunction } from "express";
+import {
+  CONFIG,
+  NETWORK_CONFIG,
+  type SolanaNetwork,
+} from "@wrap/config";
+import { prisma } from "@wrap/db";
+import { checkRateLimit } from "./redis.js";
+
+// Cache for product data
+const productCache = new Map<
+  string,
+  { product: any; expiresAt: number }
+>();
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
+async function getProductBySlug(slug: string) {
+  const cached = productCache.get(slug);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.product;
+  }
+
+  const product = await prisma.apiProduct.findUnique({
+    where: { slug },
+    include: {
+      provider: {
+        select: {
+          id: true,
+          payoutWallet: true,
+          walletAddress: true,
+          providerName: true,
+        },
+      },
+    },
+  });
+
+  if (product) {
+    productCache.set(slug, {
+      product,
+      expiresAt: Date.now() + CACHE_TTL,
+    });
+  }
+
+  return product;
+}
+
+function getNetworkFromRequest(req: Request): SolanaNetwork {
+  const networkHeader = req.headers["x-solana-network"] as string;
+  if (networkHeader === "mainnet-beta" || networkHeader === "devnet") {
+    return networkHeader;
+  }
+  return CONFIG.solana.defaultNetwork;
+}
+
+export async function multiTenantPaymentMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const slug = req.params.slug;
+
+  // Get product from database
+  const product = await getProductBySlug(slug);
+
+  if (!product) {
+    return res.status(404).json({
+      error: "API not found",
+      message: `No API found at /v1/${slug}`,
+    });
+  }
+
+  if (!product.isActive) {
+    return res.status(503).json({
+      error: "API unavailable",
+      message: "This API is currently disabled",
+    });
+  }
+
+  // Get provider's payout wallet
+  const payoutWallet =
+    product.provider.payoutWallet || product.provider.walletAddress;
+
+  if (!payoutWallet) {
+    return res.status(500).json({
+      error: "Configuration error",
+      message: "Provider has not configured a payout wallet",
+    });
+  }
+
+  // Get network
+  const network = getNetworkFromRequest(req);
+  const networkConfig = NETWORK_CONFIG[network];
+
+  // Attach product to request for later use
+  (req as any).product = product;
+  (req as any).network = network;
+  (req as any).payoutWallet = payoutWallet;
+
+  // Check rate limit
+  const walletAddress = req.headers["x-wallet-address"] as string;
+  if (walletAddress) {
+    const rateLimitKey = `${slug}:${walletAddress}`;
+    const rateLimit = await checkRateLimit(rateLimitKey, product.rateLimit, 60);
+
+    if (!rateLimit.allowed) {
+      return res.status(429).json({
+        error: "Rate limit exceeded",
+        message: `You've exceeded ${product.rateLimit} requests per minute for this API`,
+        retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+      });
+    }
+  }
+
+  // Check for X-PAYMENT header
+  const paymentHeader = req.headers["x-payment"];
+
+  if (!paymentHeader) {
+    // Return 402 Payment Required with challenge
+    return res.status(402).json({
+      error: "Payment Required",
+      accepts: [
+        {
+          scheme: CONFIG.x402.paymentScheme,
+          price: `$${product.pricePerCall}`,
+          network: networkConfig.chainId,
+          payTo: payoutWallet,
+        },
+      ],
+      product: {
+        name: product.name,
+        slug: product.slug,
+        description: product.description,
+        rateLimit: product.rateLimit,
+      },
+      facilitator: CONFIG.x402.facilitatorUrl,
+    });
+  }
+
+  // Verify payment with facilitator
+  try {
+    const verified = await verifyPayment(
+      paymentHeader as string,
+      `$${product.pricePerCall}`,
+      networkConfig.chainId,
+      payoutWallet
+    );
+
+    if (!verified) {
+      return res.status(402).json({
+        error: "Payment verification failed",
+        message: "The payment could not be verified. Please try again.",
+      });
+    }
+
+    // Payment verified, continue to route handler
+    next();
+  } catch (error) {
+    console.error("Payment verification error:", error);
+    return res.status(500).json({
+      error: "Payment verification error",
+      message: "An error occurred while verifying the payment.",
+    });
+  }
+}
+
+async function verifyPayment(
+  paymentHeader: string,
+  expectedPrice: string,
+  networkChainId: string,
+  payTo: string
+): Promise<boolean> {
+  try {
+    // Parse the payment header
+    const paymentData = JSON.parse(
+      Buffer.from(paymentHeader, "base64").toString("utf-8")
+    );
+
+    // Call the facilitator to verify the payment
+    const response = await fetch(`${CONFIG.x402.facilitatorUrl}/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        payment: paymentData,
+        expectedPrice,
+        network: networkChainId,
+        payTo,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Facilitator verification failed:", await response.text());
+      return false;
+    }
+
+    const result = await response.json();
+    return result.verified === true;
+  } catch (error) {
+    console.error("Payment parsing/verification error:", error);
+    return false;
+  }
+}
+
+export function clearProductCache(slug?: string) {
+  if (slug) {
+    productCache.delete(slug);
+  } else {
+    productCache.clear();
+  }
+}

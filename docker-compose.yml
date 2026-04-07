@@ -1,0 +1,109 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: wrap-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wrap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wrap_secret_password}
+      POSTGRES_DB: ${POSTGRES_DB:-wrap}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wrap}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wrap-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: wrap-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wrap-network
+
+  # Next.js Web Application
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: wrap-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-wrap}:${POSTGRES_PASSWORD:-wrap_secret_password}@postgres:5432/${POSTGRES_DB:-wrap}
+      - NEXT_PUBLIC_SOLANA_NETWORK=${SOLANA_NETWORK:-devnet}
+      - NEXT_PUBLIC_API_URL=${API_URL:-http://api:3001}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_SECRET=${ENCRYPTION_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wrap-network
+
+  # Express API Server
+  api:
+    build:
+      context: .
+      dockerfile: apps/api-server/Dockerfile
+    container_name: wrap-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-wrap}:${POSTGRES_PASSWORD:-wrap_secret_password}@postgres:5432/${POSTGRES_DB:-wrap}
+      - REDIS_URL=redis://redis:6379
+      - X402_FACILITATOR_URL=${X402_FACILITATOR_URL:-https://x402.agentstrail.ai}
+      - PLATFORM_FEE_RATE=${PLATFORM_FEE_RATE:-0.1}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_SECRET=${ENCRYPTION_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wrap-network
+
+  # Database migrations (runs once)
+  migrate:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile
+    container_name: wrap-migrate
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-wrap}:${POSTGRES_PASSWORD:-wrap_secret_password}@postgres:5432/${POSTGRES_DB:-wrap}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: npx prisma db push --skip-generate
+    networks:
+      - wrap-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  wrap-network:
+    driver: bridge

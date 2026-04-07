@@ -1,0 +1,23 @@
+{
+  "name": "wrap",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "dev:web": "pnpm --filter @wrap/web dev",
+    "dev:api": "pnpm --filter @wrap/api-server dev",
+    "db:generate": "pnpm --filter @wrap/db generate",
+    "db:push": "pnpm --filter @wrap/db push",
+    "db:studio": "pnpm --filter @wrap/db studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

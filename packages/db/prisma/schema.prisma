@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  walletAddress String       @unique
+  role          UserRole     @default(USER)
+  creditBalance Float        @default(0)
+  payoutWallet  String?
+  providerName  String?
+  providerBio   String?
+  totalEarnings Float        @default(0)
+  pendingPayout Float        @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  calls         ApiCall[]    @relation("UserCalls")
+  apiKeys       ApiKey[]
+  products      ApiProduct[] @relation("ProviderProducts")
+  deposits      Deposit[]
+  earnings      Earning[]
+}
+
+model ApiKey {
+  id             String       @id @default(cuid())
+  userId         String
+  name           String
+  keyName        String
+  encryptedValue String
+  provider       String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products       ApiProduct[]
+
+  @@unique([userId, keyName])
+  @@index([userId])
+}
+
+model ApiProduct {
+  id             String    @id @default(cuid())
+  providerId     String
+  slug           String    @unique
+  name           String
+  description    String
+  category       String    @default("general")
+  upstreamUrl    String
+  httpMethod     String    @default("GET")
+  headers        Json?
+  pricePerCall   Float
+  rateLimit      Int
+  isActive       Boolean   @default(true)
+  isPublic       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  apiKeyId       String?
+  authHeader     String?
+  authQueryParam String?
+  authType       String    @default("header")
+  calls          ApiCall[]
+  apiKey         ApiKey?   @relation(fields: [apiKeyId], references: [id])
+  provider       User      @relation("ProviderProducts", fields: [providerId], references: [id])
+  earnings       Earning[]
+
+  @@index([providerId])
+  @@index([category])
+  @@index([isActive, isPublic])
+}
+
+model ApiCall {
+  id              String     @id @default(cuid())
+  userId          String
+  productId       String
+  cost            Float
+  providerEarning Float
+  platformFee     Float
+  responseCode    Int
+  latencyMs       Int
+  network         String     @default("devnet")
+  txSignature     String?
+  createdAt       DateTime   @default(now())
+  product         ApiProduct @relation(fields: [productId], references: [id])
+  user            User       @relation("UserCalls", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model Earning {
+  id         String     @id @default(cuid())
+  providerId String
+  productId  String
+  amount     Float
+  period     String
+  callCount  Int
+  createdAt  DateTime   @default(now())
+  product    ApiProduct @relation(fields: [productId], references: [id])
+  provider   User       @relation(fields: [providerId], references: [id])
+
+  @@unique([providerId, productId, period])
+  @@index([providerId])
+  @@index([period])
+}
+
+model Deposit {
+  id          String    @id @default(cuid())
+  userId      String
+  txSignature String    @unique
+  amountUsdc  Float
+  network     String    @default("devnet")
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  walletAddress String
+  nonce         String
+  jwt           String?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([walletAddress])
+  @@index([nonce])
+}
+
+model PlatformConfig {
+  id              String   @id @default("default")
+  platformFeeRate Float    @default(0.1)
+  minPayout       Float    @default(1.0)
+  updatedAt       DateTime @updatedAt
+}
+
+enum UserRole {
+  USER
+  PROVIDER
+  ADMIN
+}

@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 0 0% 12%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 12%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 55%;
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   WALLET ADAPTER OVERRIDES (Light theme)
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Trigger button ───────────────────────────── */
+.wallet-adapter-button {
+  @apply !bg-primary !text-primary-foreground hover:!bg-primary/90 !rounded-full !h-9 !px-5 !font-medium !text-sm;
+  transition: all 0.15s ease !important;
+}
+.wallet-adapter-button:hover {
+  transform: translateY(-1px) !important;
+}
+
+/* ── Modal container ──────────────────────────── */
+.wallet-adapter-modal-wrapper {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.12) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ── Modal title (was white on white → invisible) */
+.wallet-adapter-modal-title {
+  color: hsl(var(--foreground)) !important;
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  padding: 1.25rem 1.5rem !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  background: hsl(var(--background)) !important;
+}
+
+/* ── Modal overlay (backdrop) ─────────────────── */
+.wallet-adapter-modal-container {
+  padding: 1rem !important;
+}
+
+/* ── Wallet list ──────────────────────────────── */
+.wallet-adapter-modal-list {
+  margin: 0 !important;
+  padding: 0.75rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.375rem !important;
+  background: hsl(var(--card)) !important;
+}
+
+/* ── Individual wallet row buttons ────────────── */
+.wallet-adapter-modal-list li {
+  list-style: none !important;
+}
+
+.wallet-adapter-modal-list li button,
+.wallet-adapter-modal-list .wallet-adapter-button {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 0.75rem !important;
+  width: 100% !important;
+  height: auto !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 0.9375rem !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+  transform: none !important;
+  justify-content: flex-start !important;
+}
+
+.wallet-adapter-modal-list li button:hover,
+.wallet-adapter-modal-list .wallet-adapter-button:hover {
+  background: hsl(var(--accent)) !important;
+  border-color: hsl(217 91% 60% / 0.3) !important;
+  transform: none !important;
+}
+
+/* ── Wallet name inside the button ────────────── */
+.wallet-adapter-modal-list li button .wallet-adapter-button-start-icon,
+.wallet-adapter-modal-list .wallet-adapter-button-start-icon {
+  width: 2rem !important;
+  height: 2rem !important;
+  border-radius: 0.5rem !important;
+}
+
+/* ── "More options" toggle ────────────────────── */
+.wallet-adapter-modal-list-more {
+  color: hsl(var(--primary)) !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ── Close (×) button ─────────────────────────── */
+.wallet-adapter-modal-button-close {
+  background: hsl(var(--secondary)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 9999px !important;
+  top: 1rem !important;
+  right: 1rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  transition: background 0.15s ease !important;
+}
+.wallet-adapter-modal-button-close:hover {
+  background: hsl(var(--accent)) !important;
+}
+.wallet-adapter-modal-button-close svg {
+  fill: hsl(var(--foreground)) !important;
+  width: 0.875rem !important;
+  height: 0.875rem !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FORM INPUT STYLES
+   ═══════════════════════════════════════════════════════ */
+input, textarea, select {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: hsl(217 91% 60%) !important;
+  box-shadow: 0 0 0 3px hsl(217 91% 60% / 0.1);
+}

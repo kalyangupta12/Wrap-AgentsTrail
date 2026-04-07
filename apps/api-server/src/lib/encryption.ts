@@ -1,0 +1,58 @@
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
+
+const ALGORITHM = "aes-256-gcm";
+const IV_LENGTH = 16;
+const TAG_LENGTH = 16;
+const SALT_LENGTH = 32;
+
+function getEncryptionKey(): Buffer {
+  const secret = process.env.ENCRYPTION_SECRET;
+  if (!secret) {
+    throw new Error("ENCRYPTION_SECRET environment variable is not set");
+  }
+  // Use scrypt to derive a 32-byte key from the secret
+  return scryptSync(secret, "wrap-api-keys", 32);
+}
+
+export function encrypt(text: string): string {
+  const key = getEncryptionKey();
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+
+  let encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+
+  const authTag = cipher.getAuthTag();
+
+  // Return iv:authTag:encrypted as hex string
+  return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
+}
+
+export function decrypt(encryptedText: string): string {
+  const key = getEncryptionKey();
+
+  const parts = encryptedText.split(":");
+  if (parts.length !== 3) {
+    throw new Error("Invalid encrypted text format");
+  }
+
+  const [ivHex, authTagHex, encrypted] = parts;
+  const iv = Buffer.from(ivHex, "hex");
+  const authTag = Buffer.from(authTagHex, "hex");
+
+  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+
+  let decrypted = decipher.update(encrypted, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+
+  return decrypted;
+}
+
+// Mask API key for display (show first 4 and last 4 characters)
+export function maskApiKey(key: string): string {
+  if (key.length <= 8) {
+    return "****";
+  }
+  return `${key.slice(0, 4)}${"*".repeat(key.length - 8)}${key.slice(-4)}`;
+}
