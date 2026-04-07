@@ -123,13 +123,16 @@ export async function multiTenantPaymentMiddleware(
     // Build the resource URL
     const resourceUrl = `https://${req.get("host")}${req.originalUrl}`;
 
+    // Determine if this is mainnet or devnet based on the network config
+    const isMainnet = network === "mainnet-beta";
+
     // x402 V1 format - this is what actually works with x402 clients
     const x402Response = {
       x402Version: 1,
       accepts: [
         {
           scheme: CONFIG.x402.paymentScheme,
-          network: "solana", // V1 uses simple network name, not CAIP-2
+          network: "solana", // V1 uses simple network name
           maxAmountRequired: priceInMicroUnits,
           resource: resourceUrl,
           description: product.description || product.name,
@@ -141,7 +144,13 @@ export async function multiTenantPaymentMiddleware(
             name: product.name,
             slug: product.slug,
             rateLimit: product.rateLimit,
-            chainId: networkConfig.chainId, // Include CAIP-2 for reference
+            // Network info for clients
+            solanaNetwork: network, // "mainnet-beta" or "devnet"
+            chainId: networkConfig.chainId,
+            isMainnet,
+            // Supported networks info
+            supportedNetworks: ["mainnet-beta", "devnet"],
+            networkHeader: "X-Solana-Network",
           },
         },
       ],

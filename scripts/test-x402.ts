@@ -5,16 +5,25 @@
  *   1. Install deps: pnpm add -D @x402/fetch @x402/svm @solana/web3.js bs58
  *   2. Set your wallet private key: export SOLANA_PRIVATE_KEY="your_base58_private_key"
  *   3. Run: npx tsx scripts/test-x402.ts
+ *   4. For devnet: SOLANA_NETWORK=devnet npx tsx scripts/test-x402.ts
  */
 
 import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
-import { ExactSvmScheme, DEVNET_RPC_URL, SOLANA_DEVNET_CAIP2 } from "@x402/svm";
+import {
+  ExactSvmScheme,
+  DEVNET_RPC_URL,
+  MAINNET_RPC_URL,
+  SOLANA_DEVNET_CAIP2,
+  SOLANA_MAINNET_CAIP2,
+} from "@x402/svm";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 
 async function main() {
   // Load wallet from environment
   const privateKeyBase58 = process.env.SOLANA_PRIVATE_KEY;
+  const networkEnv = process.env.SOLANA_NETWORK || "mainnet-beta";
+  const isMainnet = networkEnv === "mainnet-beta";
 
   if (!privateKeyBase58) {
     console.error("Error: Set SOLANA_PRIVATE_KEY environment variable");
@@ -29,15 +38,22 @@ async function main() {
   const keypair = Keypair.fromSecretKey(secretKey);
 
   console.log("Wallet address:", keypair.publicKey.toBase58());
+  console.log("Network:", isMainnet ? "Mainnet" : "Devnet");
 
-  // Create x402 payment scheme for Solana
+  // Create x402 payment scheme for Solana (supports both networks)
+  const rpcUrl = isMainnet ? MAINNET_RPC_URL : DEVNET_RPC_URL;
+  const chainId = isMainnet ? SOLANA_MAINNET_CAIP2 : SOLANA_DEVNET_CAIP2;
+
   const paymentScheme = new ExactSvmScheme({
-    rpcUrl: DEVNET_RPC_URL,
-    keypair: keypair,
+    rpcUrl,
+    keypair,
   });
 
-  // Create x402 client and register the Solana devnet scheme
-  const client = new x402Client().register(SOLANA_DEVNET_CAIP2, paymentScheme);
+  // Create x402 client and register schemes for both networks
+  const client = new x402Client()
+    .register(SOLANA_MAINNET_CAIP2, new ExactSvmScheme({ rpcUrl: MAINNET_RPC_URL, keypair }))
+    .register(SOLANA_DEVNET_CAIP2, new ExactSvmScheme({ rpcUrl: DEVNET_RPC_URL, keypair }))
+    .register("solana", paymentScheme); // V1 uses simple "solana" network name
 
   // Wrap fetch with x402 payment handling
   const x402Fetch = wrapFetchWithPayment(fetch, client);
@@ -53,7 +69,7 @@ async function main() {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "X-Solana-Network": "devnet", // Use 'mainnet-beta' for production
+        "X-Solana-Network": networkEnv, // Pass the selected network
       },
     });
 

@@ -31,8 +31,8 @@ export const CONFIG = {
     paymentScheme: "exact" as const,
   },
   solana: {
-    defaultNetwork: (process.env.NEXT_PUBLIC_SOLANA_NETWORK ||
-      "devnet") as SolanaNetwork,
+    defaultNetwork: (process.env.SOLANA_NETWORK ||
+      "mainnet-beta") as SolanaNetwork,
   },
   jwt: {
     expiresIn: "7d",
