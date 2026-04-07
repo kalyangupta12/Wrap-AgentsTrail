@@ -45,6 +45,7 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/apps/api-server/package.json ./apps/api-server/
 COPY --from=builder /app/apps/api-server/dist ./apps/api-server/dist
+COPY --from=builder /app/apps/api-server/node_modules ./apps/api-server/node_modules
 COPY --from=builder /app/packages/db ./packages/db
 COPY --from=builder /app/packages/config ./packages/config
 COPY --from=builder /app/node_modules ./node_modules
