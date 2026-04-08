@@ -132,62 +132,61 @@ export async function multiTenantPaymentMiddleware(
   // Check for X-PAYMENT header (x402 uses X-PAYMENT for the payment payload)
   const paymentHeader = req.headers["x-payment"];
 
-  if (!paymentHeader) {
-    // Build x402 V1-compliant payment requirements (the format that actually works)
-    // Price is in dollars (e.g., "0.001"), convert to USDC smallest unit (6 decimals)
-    const priceInDollars = parseFloat(product.pricePerCall);
-    const priceInMicroUnits = Math.round(priceInDollars * 1_000_000).toString();
+  // Build x402 V1-compliant payment requirements
+  // Price is in dollars (e.g., "0.001"), convert to USDC smallest unit (6 decimals)
+  const priceInDollars = parseFloat(product.pricePerCall);
+  const priceInMicroUnits = Math.round(priceInDollars * 1_000_000).toString();
 
-    // Build the resource URL
-    const resourceUrl = `https://${req.get("host")}${req.originalUrl}`;
+  // Build the resource URL
+  const resourceUrl = `https://${req.get("host")}${req.originalUrl}`;
 
-    // Determine if this is mainnet or devnet based on the network config
-    const isMainnet = network === "mainnet-beta";
+  // Determine if this is mainnet or devnet based on the network config
+  const isMainnet = network === "mainnet-beta";
 
-    // Build endpoint variants for easy discovery
-    const baseUrl = `https://${req.get("host")}/v1`;
+  // Build endpoint variants for easy discovery
+  const baseUrl = `https://${req.get("host")}/v1`;
 
-    // Fee payer from x402.dexter.cash facilitator (same for both networks)
-    const feePayer = "DEXVS3su4dZQWTvvPnLDJLRK1CeeKG6K3QqdzthgAkNV";
+  // Fee payer from x402.dexter.cash facilitator (same for both networks)
+  const feePayer = "DEXVS3su4dZQWTvvPnLDJLRK1CeeKG6K3QqdzthgAkNV";
 
-    // x402 V2 format - required for @x402/fetch library compatibility
-    const x402Response = {
-      x402Version: 2,
-      accepts: [
-        {
-          scheme: CONFIG.x402.paymentScheme,
-          network: networkConfig.chainId, // V2 uses CAIP-2 network identifier
-          maxAmountRequired: priceInMicroUnits,
-          resource: resourceUrl,
-          description: product.description || product.name,
-          mimeType: "application/json",
-          payTo: payoutWallet,
-          maxTimeoutSeconds: 60,
-          asset: networkConfig.usdcAddress,
-          extra: {
-            name: product.name,
-            slug: baseSlug,
-            rateLimit: product.rateLimit,
-            // Fee payer for transaction sponsorship
-            feePayer,
-            // Network info for clients
-            solanaNetwork: network, // "mainnet-beta" or "devnet"
-            chainId: networkConfig.chainId,
-            isMainnet,
-            // Endpoint variants for different networks
-            endpoints: {
-              mainnet: `${baseUrl}/${baseSlug}-m`,
-              devnet: `${baseUrl}/${baseSlug}-d`,
-              default: `${baseUrl}/${baseSlug}`,
-            },
-            // Supported networks info
-            supportedNetworks: ["mainnet-beta", "devnet"],
-            networkHeader: "X-Solana-Network",
+  // x402 V1 format with Dexter's network names
+  // Dexter uses: "solana" for mainnet, "solana-devnet" for devnet
+  const dexterNetworkName = isMainnet ? "solana" : "solana-devnet";
+
+  const x402Response = {
+    x402Version: 1 as const,
+    accepts: [
+      {
+        scheme: CONFIG.x402.paymentScheme,
+        network: dexterNetworkName,
+        maxAmountRequired: priceInMicroUnits,
+        resource: resourceUrl,
+        description: product.description || product.name,
+        mimeType: "application/json",
+        payTo: payoutWallet,
+        maxTimeoutSeconds: 60,
+        asset: networkConfig.usdcAddress,
+        extra: {
+          name: product.name,
+          slug: baseSlug,
+          rateLimit: product.rateLimit,
+          feePayer,
+          solanaNetwork: network,
+          chainId: networkConfig.chainId,
+          isMainnet,
+          endpoints: {
+            mainnet: `${baseUrl}/${baseSlug}-m`,
+            devnet: `${baseUrl}/${baseSlug}-d`,
+            default: `${baseUrl}/${baseSlug}`,
           },
+          supportedNetworks: ["mainnet-beta", "devnet"],
+          networkHeader: "X-Solana-Network",
         },
-      ],
-    };
+      },
+    ],
+  };
 
+  if (!paymentHeader) {
     // Return 402 with x402 V1 JSON body
     return res.status(402).json(x402Response);
   }
@@ -196,9 +195,7 @@ export async function multiTenantPaymentMiddleware(
   try {
     const verified = await verifyPayment(
       paymentHeader as string,
-      `$${product.pricePerCall}`,
-      networkConfig.chainId,
-      payoutWallet
+      x402Response
     );
 
     if (!verified) {
@@ -221,27 +218,25 @@ export async function multiTenantPaymentMiddleware(
 
 async function verifyPayment(
   paymentHeader: string,
-  expectedPrice: string,
-  networkChainId: string,
-  payTo: string
+  paymentRequirements: any
 ): Promise<boolean> {
   try {
-    // Parse the payment header
-    const paymentData = JSON.parse(
+    // Parse the payment header (base64 encoded payment payload)
+    const paymentPayload = JSON.parse(
       Buffer.from(paymentHeader, "base64").toString("utf-8")
     );
 
     // Call the facilitator to verify the payment
+    // The facilitator expects: x402Version, paymentPayload, and paymentRequirements
     const response = await fetch(`${CONFIG.x402.facilitatorUrl}/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        payment: paymentData,
-        expectedPrice,
-        network: networkChainId,
-        payTo,
+        x402Version: paymentRequirements.x402Version,
+        paymentPayload,
+        paymentRequirements: paymentRequirements.accepts[0],
       }),
     });
 
@@ -250,8 +245,8 @@ async function verifyPayment(
       return false;
     }
 
-    const result = (await response.json()) as { verified?: boolean };
-    return result.verified === true;
+    const result = (await response.json()) as { isValid?: boolean };
+    return result.isValid === true;
   } catch (error) {
     console.error("Payment parsing/verification error:", error);
     return false;

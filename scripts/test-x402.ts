@@ -16,7 +16,9 @@ import {
   SOLANA_DEVNET_CAIP2,
   SOLANA_MAINNET_CAIP2,
 } from "@x402/svm";
+import { ExactSvmSchemeV1 } from "@x402/svm/v1";
 import { Keypair } from "@solana/web3.js";
+import { createKeyPairSignerFromBytes } from "@solana/kit";
 import bs58 from "bs58";
 
 async function main() {
@@ -37,23 +39,22 @@ async function main() {
   const secretKey = bs58.decode(privateKeyBase58);
   const keypair = Keypair.fromSecretKey(secretKey);
 
+  // Create signer for V1 (using @solana/kit)
+  const signer = await createKeyPairSignerFromBytes(secretKey);
+
   console.log("Wallet address:", keypair.publicKey.toBase58());
   console.log("Network:", isMainnet ? "Mainnet" : "Devnet");
 
-  // Create x402 payment scheme for Solana (supports both networks)
+  // Create x402 client and register schemes for both V1 and V2 networks
   const rpcUrl = isMainnet ? MAINNET_RPC_URL : DEVNET_RPC_URL;
-  const chainId = isMainnet ? SOLANA_MAINNET_CAIP2 : SOLANA_DEVNET_CAIP2;
 
-  const paymentScheme = new ExactSvmScheme({
-    rpcUrl,
-    keypair,
-  });
-
-  // Create x402 client and register schemes for both networks
   const client = new x402Client()
+    // V2 registrations (CAIP-2 identifiers)
     .register(SOLANA_MAINNET_CAIP2, new ExactSvmScheme({ rpcUrl: MAINNET_RPC_URL, keypair }))
     .register(SOLANA_DEVNET_CAIP2, new ExactSvmScheme({ rpcUrl: DEVNET_RPC_URL, keypair }))
-    .register("solana", paymentScheme); // V1 uses simple "solana" network name
+    // V1 registrations (Dexter's network names)
+    .registerV1("solana", new ExactSvmSchemeV1(signer, { rpcUrl: MAINNET_RPC_URL }))
+    .registerV1("solana-devnet", new ExactSvmSchemeV1(signer, { rpcUrl: DEVNET_RPC_URL }));
 
   // Wrap fetch with x402 payment handling
   const x402Fetch = wrapFetchWithPayment(fetch, client);
