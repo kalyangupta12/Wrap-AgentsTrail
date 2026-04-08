@@ -48,7 +48,7 @@ export default function ProviderProductsPage() {
   };
 
   const copyEndpoint = (slug: string, suffix: string) => {
-    const endpoint = `/v1/${slug}${suffix}`;
+    const endpoint = `https://api-wrap.agentstrail.ai/v1/${slug}${suffix}`;
     navigator.clipboard.writeText(endpoint);
     setCopiedSlug(`${slug}${suffix}`);
     setTimeout(() => setCopiedSlug(null), 2000);

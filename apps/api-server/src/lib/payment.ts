@@ -147,16 +147,16 @@ export async function multiTenantPaymentMiddleware(
     // Build endpoint variants for easy discovery
     const baseUrl = `https://${req.get("host")}/v1`;
 
-    // Fee payer from x402 facilitator (same for both networks)
-    const feePayer = "BZDTTtvHs62PbWdeVtbzhHAoAuP2eL9QCgH9TAvUdC3Q";
+    // Fee payer from x402.dexter.cash facilitator (same for both networks)
+    const feePayer = "DEXVS3su4dZQWTvvPnLDJLRK1CeeKG6K3QqdzthgAkNV";
 
-    // x402 V1 format - this is what actually works with x402 clients
+    // x402 V2 format - required for @x402/fetch library compatibility
     const x402Response = {
-      x402Version: 1,
+      x402Version: 2,
       accepts: [
         {
           scheme: CONFIG.x402.paymentScheme,
-          network: "solana", // V1 uses simple network name
+          network: networkConfig.chainId, // V2 uses CAIP-2 network identifier
           maxAmountRequired: priceInMicroUnits,
           resource: resourceUrl,
           description: product.description || product.name,

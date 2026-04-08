@@ -60,7 +60,7 @@ async function main() {
 
   // Make a paid API request
   const apiUrl = process.env.API_URL || "https://api-wrap.agentstrail.ai";
-  const endpoint = "/v1/bitcoin-price";
+  const endpoint = isMainnet ? "/v1/crypto-listings-m" : "/v1/crypto-listings-d";
 
   console.log(`\nMaking request to ${apiUrl}${endpoint}...`);
 
