@@ -228,30 +228,54 @@ async function verifyPayment(
 
     const requirements = paymentRequirements.accepts[0];
 
+    const verifyUrl = `${CONFIG.x402.facilitatorUrl}/verify`;
+    const requestBody = {
+      x402Version: paymentRequirements.x402Version,
+      paymentPayload,
+      paymentRequirements: requirements,
+    };
+
     console.log("🔍 Verifying payment:", {
       network: requirements.network,
       amount: requirements.maxAmountRequired,
       payTo: requirements.payTo,
       facilitator: CONFIG.x402.facilitatorUrl,
+      verifyUrl,
     });
 
-    // Call the facilitator to verify the payment
+    // Call the facilitator to verify the payment with 10s timeout
     // agentstrail supports V1 network names (solana, solana-devnet) directly
-    const response = await fetch(`${CONFIG.x402.facilitatorUrl}/verify`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        x402Version: paymentRequirements.x402Version,
-        paymentPayload,
-        paymentRequirements: requirements,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    let response;
+    try {
+      response = await fetch(verifyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === "AbortError") {
+        console.error("❌ Facilitator request timed out after 10s");
+      } else {
+        console.error("❌ Facilitator request failed:", fetchError.message);
+      }
+      throw fetchError;
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("❌ Facilitator verification failed:", errorText);
+      console.error("❌ Facilitator verification failed:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+      });
       return false;
     }
 

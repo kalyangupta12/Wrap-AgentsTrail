@@ -29,6 +29,51 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Facilitator connectivity test
+app.get("/debug/facilitator", async (req, res) => {
+  try {
+    const facilitatorUrl = CONFIG.x402.facilitatorUrl;
+    console.log("🔍 Testing facilitator connectivity:", facilitatorUrl);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const start = Date.now();
+    const response = await fetch(facilitatorUrl, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const duration = Date.now() - start;
+
+    const ok = response.ok;
+    const status = response.status;
+
+    console.log("✅ Facilitator responded:", { status, duration: `${duration}ms` });
+
+    res.json({
+      facilitatorUrl,
+      reachable: true,
+      status,
+      ok,
+      duration: `${duration}ms`,
+      message: ok
+        ? "Facilitator is reachable and responding"
+        : "Facilitator is reachable but returned non-OK status",
+    });
+  } catch (error: any) {
+    console.error("❌ Facilitator test failed:", error.message);
+    res.json({
+      facilitatorUrl: CONFIG.x402.facilitatorUrl,
+      reachable: false,
+      error: error.message,
+      message:
+        error.name === "AbortError"
+          ? "Facilitator request timed out (>5s) - possible network issue"
+          : `Facilitator is not reachable: ${error.message}`,
+    });
+  }
+});
+
 // List all available endpoints
 app.get("/v1", async (req, res) => {
   const { prisma } = await import("@wrap/db");
