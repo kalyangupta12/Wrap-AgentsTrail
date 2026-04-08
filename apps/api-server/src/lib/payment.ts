@@ -227,7 +227,7 @@ async function verifyPayment(
     );
 
     // Call the facilitator to verify the payment
-    // The facilitator expects: x402Version, paymentPayload, and paymentRequirements
+    // Dexter supports V1 network names (solana, solana-devnet) directly
     const response = await fetch(`${CONFIG.x402.facilitatorUrl}/verify`, {
       method: "POST",
       headers: {
