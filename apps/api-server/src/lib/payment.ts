@@ -226,6 +226,15 @@ async function verifyPayment(
       Buffer.from(paymentHeader, "base64").toString("utf-8")
     );
 
+    const requirements = paymentRequirements.accepts[0];
+
+    console.log("🔍 Verifying payment:", {
+      network: requirements.network,
+      amount: requirements.maxAmountRequired,
+      payTo: requirements.payTo,
+      facilitator: CONFIG.x402.facilitatorUrl,
+    });
+
     // Call the facilitator to verify the payment
     // Dexter supports V1 network names (solana, solana-devnet) directly
     const response = await fetch(`${CONFIG.x402.facilitatorUrl}/verify`, {
@@ -236,19 +245,27 @@ async function verifyPayment(
       body: JSON.stringify({
         x402Version: paymentRequirements.x402Version,
         paymentPayload,
-        paymentRequirements: paymentRequirements.accepts[0],
+        paymentRequirements: requirements,
       }),
     });
 
     if (!response.ok) {
-      console.error("Facilitator verification failed:", await response.text());
+      const errorText = await response.text();
+      console.error("❌ Facilitator verification failed:", errorText);
       return false;
     }
 
-    const result = (await response.json()) as { isValid?: boolean };
+    const result = (await response.json()) as { isValid?: boolean; invalidReason?: string };
+
+    if (result.isValid) {
+      console.log("✅ Payment verified successfully");
+    } else {
+      console.error("❌ Payment invalid:", result.invalidReason || "Unknown reason");
+    }
+
     return result.isValid === true;
   } catch (error) {
-    console.error("Payment parsing/verification error:", error);
+    console.error("❌ Payment parsing/verification error:", error);
     return false;
   }
 }
