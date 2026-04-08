@@ -146,11 +146,11 @@ export async function multiTenantPaymentMiddleware(
   // Build endpoint variants for easy discovery
   const baseUrl = `https://${req.get("host")}/v1`;
 
-  // Fee payer from x402.dexter.cash facilitator (same for both networks)
-  const feePayer = "DEXVS3su4dZQWTvvPnLDJLRK1CeeKG6K3QqdzthgAkNV";
+  // Fee payer from x402.agentstrail.ai facilitator (same for both networks)
+  const feePayer = "BZDTTtvHs62PbWdeVtbzhHAoAuP2eL9QCgH9TAvUdC3Q";
 
-  // x402 V1 format with Dexter's network names
-  // Dexter uses: "solana" for mainnet, "solana-devnet" for devnet
+  // x402 V1 format with agentstrail's network names
+  // agentstrail uses: "solana" for mainnet, "solana-devnet" for devnet
   const dexterNetworkName = isMainnet ? "solana" : "solana-devnet";
 
   const x402Response = {
@@ -236,7 +236,7 @@ async function verifyPayment(
     });
 
     // Call the facilitator to verify the payment
-    // Dexter supports V1 network names (solana, solana-devnet) directly
+    // agentstrail supports V1 network names (solana, solana-devnet) directly
     const response = await fetch(`${CONFIG.x402.facilitatorUrl}/verify`, {
       method: "POST",
       headers: {

@@ -27,7 +27,7 @@ export const NETWORK_CONFIG = {
 export const CONFIG = {
   x402: {
     facilitatorUrl:
-      process.env.X402_FACILITATOR_URL || "https://x402.dexter.cash",
+      process.env.X402_FACILITATOR_URL || "https://x402.agentstrail.ai",
     paymentScheme: "exact" as const,
   },
   solana: {
